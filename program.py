@@ -37,18 +37,48 @@ def receive_file(port, filename, use_crc=True):
     time.sleep(2)
 
     init_char = C if use_crc else NAK
+
+    # Cykliczne wysyłanie znaku inicjalizacji aż do SOH lub EOT
     next_init_time = time.time()
+    init_timeout = time.time() + 60  # maksymalnie 60 sekund czekania
+
+    print(f"[Odbiornik] Oczekiwanie na rozpoczęcie transmisji...")
 
     while True:
         now = time.time()
-        # co sekundę ponawiaj inicjalizację
         if now >= next_init_time:
             ser.write(bytes([init_char]))
-            next_init_time = now + 1
-            print(f"[Odbiornik] Ponowiono inicjalizację: {hex(init_char)}")
+            print(f"[Odbiornik] Wysłano inicjalizację: {hex(init_char)}")
+            next_init_time = now + 3  # wysyłaj co 3 sekundy
+
         header = ser.read(1)
-        if not header:
-            break
+        if header:
+            code = header[0]
+            if code == SOH or code == EOT:
+                break  # przejdź do odbioru
+
+        if time.time() > init_timeout:
+            print("[Odbiornik] Timeout oczekiwania na nadawcę")
+            ser.close()
+            return
+
+
+    # init_char = C if use_crc else NAK
+    #
+    #
+    # ser.write(bytes([init_char]))
+    # print(f"[Odbiornik] Ponowiono inicjalizację: {hex(init_char)}")
+    # next_init_time = time.time()
+    # while True:
+    #     now = time.time()
+    #     # co sekundę ponawiaj inicjalizację
+    #     if now >= next_init_time:
+    #         ser.write(bytes([init_char]))
+    #         next_init_time = now + 1
+    #         print(f"[Odbiornik] Ponowiono inicjalizację: {hex(init_char)}")
+    #     header = ser.read(1)
+    #     if not header:
+    #         break
 
     expected_block = 1
     with open(filename, 'wb') as f:
