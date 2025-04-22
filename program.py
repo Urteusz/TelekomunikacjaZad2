@@ -1,6 +1,5 @@
 import serial
 import time
-import binascii
 
 # Znaki sterujące XModem
 SOH = 0x01  # Start of Header
@@ -17,9 +16,18 @@ def calculate_checksum(block):
     """Wylicza sumę kontrolną (1 bajt)."""
     return sum(block) % 256
 
-def calculate_crc(block):
-    """Wylicza CRC16 (2 bajty)."""
-    return binascii.crc_hqx(block, 0)
+def calculate_crc(block):  # << ZMIANA
+    """Wylicza CRC16-CCITT (2 bajty) bez użycia biblioteki."""
+    crc = 0x0000
+    polynomial = 0x1021
+    for byte in block:
+        crc ^= (byte << 8)
+        for _ in range(8):
+            if (crc & 0x8000):
+                crc = ((crc << 1) & 0xFFFF) ^ polynomial
+            else:
+                crc = (crc << 1) & 0xFFFF
+    return crc
 
 # === Odbiornik ===
 def receive_file(port, filename, use_crc=True):
