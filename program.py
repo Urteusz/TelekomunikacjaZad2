@@ -16,7 +16,7 @@ def calculate_checksum(block):
     """Wylicza sumę kontrolną (1 bajt)."""
     return sum(block) % 256
 
-def calculate_crc(block):  # << ZMIANA
+def calculate_crc(block):
     """Wylicza CRC16-CCITT (2 bajty) bez użycia biblioteki."""
     crc = 0x0000
     polynomial = 0x1021
@@ -37,8 +37,18 @@ def receive_file(port, filename, use_crc=True):
     time.sleep(2)
 
     init_char = C if use_crc else NAK
-    ser.write(bytes([init_char]))
-    print(f"[Odbiornik] Wysłano inicjalizację: {hex(init_char)}")
+    next_init_time = time.time()
+
+    while True:
+        now = time.time()
+        # co sekundę ponawiaj inicjalizację
+        if now >= next_init_time:
+            ser.write(bytes([init_char]))
+            next_init_time = now + 1
+            print(f"[Odbiornik] Ponowiono inicjalizację: {hex(init_char)}")
+        header = ser.read(1)
+        if not header:
+            break
 
     expected_block = 1
     with open(filename, 'wb') as f:
@@ -109,18 +119,15 @@ def send_file(port, filename, use_crc=True):
     ser = serial.Serial(port, baudrate=9600, timeout=1)
     time.sleep(2)
 
-    print("[Nadawca] Oczekiwanie na inicjalizację od odbiornika...")
-    init = ser.read(1)
-    if not init:
-        print("[Nadawca] Brak inicjalizacji, zakończenie")
-        ser.close()
-        return
-    print(f"[Nadawca] Otrzymano inicjalizację: {hex(init[0])}")
     expected_init = C if use_crc else NAK
-    if init[0] != expected_init:
-        print(f"[Nadawca] Nieoczekiwany znak inicjalizacji, oczekiwano: {hex(expected_init)}")
-        ser.close()
-        return
+    print("[Nadawca] Oczekiwanie na inicjalizację od odbiornika...")
+    # ZMIANA: czekaj w pętli na poprawny znak inicjalizacji
+    while True:
+        init = ser.read(1)
+        if init and init[0] == expected_init:
+            print(f"[Nadawca] Otrzymano inicjalizację: {hex(init[0])}")
+            break
+        # w przeciwnym razie powtarzaj odczyt
 
     block_number = 1
     with open(filename, 'rb') as f:
