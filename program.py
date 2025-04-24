@@ -49,7 +49,7 @@ def receive_file(port, filename, use_crc=True):
         if now >= next_init_time:
             ser.write(bytes([init_char]))
             print(f"[Odbiornik] Wysłano inicjalizację: {hex(init_char)}")
-            next_init_time = now + 3  # wysyłaj co 3 sekundy
+            next_init_time = now + 3
 
         header = ser.read(1)
         if header:
